@@ -5,5 +5,15 @@
     "jsxImportSource": "hono/jsx",
     "resolveJsonModule": true,
     "esModuleInterop": true,
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "skipLibCheck": true,
+    "lib": [
+      "ESNext"
+    ],
+    "types": [
+      "@cloudflare/workers-types/2023-07-01"
+    ],
   }
 }
