@@ -1,70 +1,66 @@
 import { Hono } from 'hono'
-
 import patterns from "./patterns.json"
-import reqConfigs from "./configs.json"
+import configs from "./configs.json"
 import { logger } from 'hono/logger'
-export const customLogger = (message: string, ...rest: string[]) => {
-  console.log(message, ...rest)
+import { PrettyConsole } from './prettyConsole'
+
+const prettyConsole = new PrettyConsole();
+prettyConsole.clear();
+
+type serverConnectRequest = {
+  license_key: string,
+  port: string,
+  version: string,
+  ip: string,
+  reqconfigs: string[]
 }
+
 const app = new Hono()
-
-app.use(logger(customLogger))
-app.get('/', (c) => {
-  console.log("New / request")
-  return c.text('Kurwa')
-})
+app.use(logger())
 
 app.get('/', (c) => {
-  console.log("New request")
-  return c.text('SELAX Elite API')
+  return c.text('SELAX Elite Ultimate API')
 })
 
+
+// ! SELAX Fetch Configs Request (POST)
+// ? Note: This request has usually a SLX-API-Auth header but we dont really give a shit so no auth required.
+// * Returns: An simple json array with all configs that are available to be requests upon server connect.
 app.post('/fetchconfigs', async (c) => {
-  const body = await c.req.json()
-  console.log(await c.req.json())
-  const config = {
-    "configs": [
-      "4996584",
-      "4610034",
-      "4802144",
-      "3671192",
-      "5290818",
-      "5155495",
-      "5152124",
-      "5119605",
-      "11593651",
-      "7196940",
-      "6873255",
-      "7169886",
-      "6841572",
-      "11398076",
-      "7202058",
-      "7099089",
-      "10391836",
-      "10518592",
-      "9909060",
-      "10073089",
-      "8054672",
-      "7353188",
-      "7378238",
-      "9519867",
-      "9519359",
-      "9517007",
-      "8395562",
-      "8442355",
-      "3989064"
-    ]
-  }
-  return c.json(config)
+  return c.json({
+    "configs": configs.requestConfigs
+  })
 })
 
+// ! SELAX Server Connection Request (POST)
+// ? Note: Same as for the request above, licensing doesnt really matter in this instance so no license is read.
+// * Required: "reason" can be one of 'disabled', 'expired', 'wrongipport'
+// * Required: "edition" needs to include 'ELITE' but can be suffixed with 'DEVTOOLS' and/or 'SIREN' for development mode or swedish sirens mode. (Swedish sirens mode requires appropriate files)
+// * Required?: "latestversion" is supposed to be the version of your selax installation. Latest as of typing this is v1.21.
+// * Required: "recconfigs" is the configs that your server has requested for any Alvuten/Elle Modding vehicles with Selax Elite compatibility. It grabs the configs for the IDs you provided.
+// * Required: "patterns" is the default patterns for any non Selax Elite compatible vehicles. Has a default value.
+// * Optional: "notice" is a message that will be displayed in the server console. Not used in this case.
+// * Optional: "paymentlink" is a link that will be promted to the user for manual payment. Not used in this case.
+// * Optional: "timetorenew" is the remaining duration until the IP can be changed for the present license. Not used in this case.
 app.post('/serverconnect', async (c) => {
-  console.log(await c.req.json())
+  const req = await c.req.json() as unknown as serverConnectRequest
+
+  const returningConfigs: any[] = configs.returnConfigs.filter((config) => {
+    return req.reqconfigs.includes(config.identifier)
+  })
+
+  prettyConsole.log('Server Connect Request:')
+  prettyConsole.log(`License Key: ${req.license_key}`)
+  prettyConsole.log(`Port: ${req.port}`)
+  prettyConsole.log(`Version: ${req.version}`)
+  prettyConsole.log(`IP: ${req.ip}`)
+  prettyConsole.log(`Requested Configs: ${req.reqconfigs}`)
+
   return c.json({
     "reason": "ok",
     "edition": "ELITEDEVTOOLS",
     "latestversion": 1.21,
-    "recconfigs": reqConfigs,
+    "recconfigs": returningConfigs,
     "patterns": patterns
   })
 })
@@ -72,8 +68,4 @@ app.post('/serverconnect', async (c) => {
 export default {
   port: 4000,
   fetch: app.fetch,
-  // tls: {
-  //   cert: Bun.file("api.ellemodding.se.pem"),
-  //   key: Bun.file("api.ellemodding.se-key.pem"),
-  // },
 }
